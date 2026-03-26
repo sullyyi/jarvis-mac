@@ -5,11 +5,21 @@
 //  Created by Sully Yildiz on 3/25/26.
 //
 
+//
+//  MenuBarView.swift
+//  JarvisMac
+//
+//  Created by Sully Yildiz on 3/25/26.
+//
+
 import SwiftUI
+import AppKit
 
 struct MenuBarView: View {
+    
     @StateObject private var viewModel = ServerViewModel()
     @ObservedObject var hotkeyMonitor: HotkeyMonitor
+    @ObservedObject var serverManager: ServerManager
     @State private var pulse = false
 
     var body: some View {
@@ -56,6 +66,25 @@ struct MenuBarView: View {
                 Divider()
 
                 VStack(alignment: .leading, spacing: 6) {
+                    Text("Local Server Control")
+                        .font(.subheadline)
+                        .bold()
+
+                    Label(
+                        serverManager.isRunning ? "Local server running" : "Local server stopped",
+                        systemImage: serverManager.isRunning ? "play.circle.fill" : "stop.circle.fill"
+                    )
+                    .foregroundStyle(serverManager.isRunning ? .green : .secondary)
+                    .font(.callout)
+
+                    Text(serverManager.statusText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Divider()
+
+                VStack(alignment: .leading, spacing: 6) {
                     Text("Push-to-Talk Status")
                         .font(.subheadline)
                         .bold()
@@ -71,6 +100,16 @@ struct MenuBarView: View {
                 Divider()
 
                 HStack {
+                    Button(serverManager.isRunning ? "Stop Local Server" : "Start Local Server") {
+                        if serverManager.isRunning {
+                            serverManager.stopServer()
+                        } else {
+                            serverManager.startServer()
+                        }
+                    }
+
+                    Spacer()
+
                     Button("Test Server") {
                         Task {
                             await viewModel.checkHealth()
@@ -97,5 +136,8 @@ struct MenuBarView: View {
 }
 
 #Preview {
-    MenuBarView(hotkeyMonitor: HotkeyMonitor.shared)
+    MenuBarView(
+        hotkeyMonitor: HotkeyMonitor.shared,
+        serverManager: ServerManager()
+    )
 }

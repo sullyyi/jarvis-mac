@@ -13,7 +13,7 @@ final class ServerViewModel: ObservableObject {
     @Published var statusMessage: String = "Checking local server..."
     @Published var isHealthy: Bool = false
 
-    private let healthURL = URL(string: "http://localhost:8787/health")!
+    private let healthURL = URL(string: "http://127.0.0.1:8787/health")!
 
     func checkHealth() async {
         statusMessage = "Checking local server..."
