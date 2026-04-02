@@ -158,6 +158,32 @@ final class AudioCaptureManager: NSObject, ObservableObject {
         if audioEngine.isRunning {
             audioEngine.stop()
         }
+        cleanupAllRecordings()
+    }
+    
+    // MARK: - Cleanup
+    
+    private func cleanupAllRecordings() {
+        let fileManager = FileManager.default
+        let tempDir = fileManager.temporaryDirectory
+        
+        do {
+            let contents = try fileManager.contentsOfDirectory(at: tempDir, includingPropertiesForKeys: nil)
+            
+            var deletedCount = 0
+            for file in contents {
+                if file.lastPathComponent.hasPrefix("recording_") && file.pathExtension == "wav" {
+                    try fileManager.removeItem(at: file)
+                    deletedCount += 1
+                }
+            }
+            
+            if deletedCount > 0 {
+                print("🗑️ Cleaned up \(deletedCount) audio files on app termination")
+            }
+        } catch {
+            print("⚠️ Error cleaning up audio files: \(error.localizedDescription)")
+        }
     }
 }
 

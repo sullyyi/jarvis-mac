@@ -17,6 +17,32 @@ final class WhisperTranscriber: ObservableObject {
     private let tempDirectory = FileManager.default.temporaryDirectory
     private var activeRequestID = UUID()
     
+    deinit {
+        cleanupWhisperCache()
+    }
+    
+    private func cleanupWhisperCache() {
+        let fileManager = FileManager.default
+        
+        do {
+            let contents = try fileManager.contentsOfDirectory(at: tempDirectory, includingPropertiesForKeys: nil)
+            
+            var deletedCount = 0
+            for file in contents {
+                if file.lastPathComponent.hasPrefix("whisper_") {
+                    try fileManager.removeItem(at: file)
+                    deletedCount += 1
+                }
+            }
+            
+            if deletedCount > 0 {
+                print("🗑️ Cleaned up \(deletedCount) Whisper temp directories on app termination")
+            }
+        } catch {
+            print("⚠️ Error cleaning up Whisper cache: \(error.localizedDescription)")
+        }
+    }
+    
     // MARK: - Transcription
     
     func transcribe(audioURL: URL, completion: @escaping (Result<String, Error>) -> Void) {
