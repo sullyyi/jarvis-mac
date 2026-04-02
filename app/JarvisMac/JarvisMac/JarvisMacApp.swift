@@ -13,6 +13,8 @@ struct JarvisMacApp: App {
     @StateObject private var hotkeyMonitor = HotkeyMonitor.shared
     @StateObject private var iconState: MenuBarIconState
     @StateObject private var serverManager = ServerManager()
+    @StateObject private var audioCapture = AudioCaptureManager()
+    @StateObject private var whisper = WhisperTranscriber()
 
 
     init() {
@@ -24,7 +26,9 @@ struct JarvisMacApp: App {
         MenuBarExtra {
             MenuBarView(
                 hotkeyMonitor: hotkeyMonitor,
-                serverManager: serverManager
+                serverManager: serverManager,
+                audioCapture: audioCapture,
+                whisper: whisper
             )
         } label: {
             Image(systemName: currentSymbol)

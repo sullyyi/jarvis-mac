@@ -20,6 +20,8 @@ struct MenuBarView: View {
     @StateObject private var viewModel = ServerViewModel()
     @ObservedObject var hotkeyMonitor: HotkeyMonitor
     @ObservedObject var serverManager: ServerManager
+    @ObservedObject var audioCapture: AudioCaptureManager
+    @ObservedObject var whisper: WhisperTranscriber
     @State private var pulse = false
 
     var body: some View {
@@ -95,6 +97,32 @@ struct MenuBarView: View {
                     )
                     .foregroundStyle(hotkeyMonitor.isRightOptionPressed ? .green : .secondary)
                     .font(.callout)
+                    
+                    if audioCapture.isRecording {
+                        Label("Recording audio...", systemImage: "waveform.circle.fill")
+                            .foregroundStyle(.blue)
+                            .font(.caption)
+                    }
+                    
+                    if whisper.isTranscribing {
+                        Label("Transcribing...", systemImage: "bubble.right.fill")
+                            .foregroundStyle(.blue)
+                            .font(.caption)
+                    }
+                    
+                    if let transcription = whisper.transcription {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Last transcription:")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text(transcription)
+                                .font(.caption)
+                                .lineLimit(3)
+                                .padding(8)
+                                .background(Color.gray.opacity(0.1))
+                                .cornerRadius(4)
+                        }
+                    }
                 }
 
                 Divider()
@@ -132,12 +160,33 @@ struct MenuBarView: View {
         .onAppear {
             pulse.toggle()
         }
+        .onChange(of: hotkeyMonitor.isRightOptionPressed) { oldValue, newValue in
+            if newValue {
+                audioCapture.startRecording()
+            } else {
+                audioCapture.stopRecording()
+                
+                // Transcribe the recorded audio
+                if let audioURL = audioCapture.recordedAudioURL {
+                    whisper.transcribe(audioURL: audioURL) { result in
+                        switch result {
+                        case .success(let text):
+                            print("Transcription: \(text)")
+                        case .failure(let error):
+                            print("Transcription error: \(error.localizedDescription)")
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
 #Preview {
     MenuBarView(
         hotkeyMonitor: HotkeyMonitor.shared,
-        serverManager: ServerManager()
+        serverManager: ServerManager(),
+        audioCapture: AudioCaptureManager(),
+        whisper: WhisperTranscriber()
     )
 }
