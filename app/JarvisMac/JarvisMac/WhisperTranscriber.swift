@@ -71,9 +71,10 @@ final class WhisperTranscriber: ObservableObject {
             "--verbose", "False"
         ]
         
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = pipe
+        let stdoutPipe = Pipe()
+        let stderrPipe = Pipe()
+        process.standardOutput = stdoutPipe
+        process.standardError = stderrPipe
         
         do {
             try process.run()
@@ -83,9 +84,17 @@ final class WhisperTranscriber: ObservableObject {
             throw WhisperError.transcriptionFailed("Failed to run Whisper process: \(error.localizedDescription)")
         }
         
+        // Capture both stdout and stderr
+        let stdoutData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
+        let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+        let stdoutText = String(data: stdoutData, encoding: .utf8) ?? ""
+        let stderrText = String(data: stderrData, encoding: .utf8) ?? ""
+        
+        print("🔊 Whisper stdout: \(stdoutText)")
+        print("🔊 Whisper stderr: \(stderrText)")
+        
         if process.terminationStatus != 0 {
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown Whisper error"
+            let errorMessage = stderrText.isEmpty ? stdoutText : stderrText
             try? FileManager.default.removeItem(at: outputDir)
             throw WhisperError.transcriptionFailed(errorMessage)
         }

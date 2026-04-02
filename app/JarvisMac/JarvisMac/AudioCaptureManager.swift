@@ -35,22 +35,31 @@ final class AudioCaptureManager: NSObject, ObservableObject {
             let inputNode = audioEngine.inputNode
             let format = inputNode.outputFormat(forBus: 0)
             
+            print("🎤 Audio format: \(format)")
+            print("🎤 Sample rate: \(format.sampleRate)")
+            print("🎤 Channels: \(format.channelCount)")
+            
             // Create audio file for writing
             audioFile = try AVAudioFile(forWriting: audioURL, settings: format.settings)
             recordedAudioURL = audioURL
+            
+            print("📁 Recording to: \(audioURL.path)")
             
             // Install tap on input node to capture audio
             inputNode.installTap(onBus: 0, bufferSize: 4096, format: format) { [weak self] buffer, _ in
                 do {
                     try self?.audioFile?.write(from: buffer)
+                    print("📊 Wrote \(buffer.frameLength) frames")
                 } catch {
                     self?.error = error
+                    print("❌ Write error: \(error.localizedDescription)")
                 }
             }
             
             // Start the audio engine if not already running
             if !audioEngine.isRunning {
                 try audioEngine.start()
+                print("✅ Audio engine started")
             }
             
             DispatchQueue.main.async {
@@ -58,6 +67,7 @@ final class AudioCaptureManager: NSObject, ObservableObject {
             }
         } catch {
             self.error = error
+            print("❌ Recording start error: \(error.localizedDescription)")
             DispatchQueue.main.async {
                 self.isRecording = false
             }
