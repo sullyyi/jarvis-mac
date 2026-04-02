@@ -42,8 +42,19 @@ final class WhisperTranscriber: ObservableObject {
     // MARK: - Private Whisper Execution
     
     private func runWhisper(audioFile: URL) throws -> String {
+        // Try to locate whisper in common paths
+        let whisperPaths = [
+            "/opt/homebrew/bin/whisper",      // Apple Silicon Homebrew
+            "/usr/local/bin/whisper",          // Intel Homebrew / manual install
+            "/usr/bin/whisper"                 // System path
+        ]
+        
+        guard let whisperPath = whisperPaths.first(where: { FileManager.default.fileExists(atPath: $0) }) else {
+            throw WhisperError.notInstalled
+        }
+        
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/local/bin/whisper")
+        process.executableURL = URL(fileURLWithPath: whisperPath)
         
         process.arguments = [
             audioFile.path,
