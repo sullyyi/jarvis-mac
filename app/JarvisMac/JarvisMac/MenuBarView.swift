@@ -143,6 +143,12 @@ struct MenuBarView: View {
                             await viewModel.checkHealth()
                         }
                     }
+                }
+                
+                HStack {
+                    Button("Clear Cache") {
+                        clearCache()
+                    }
 
                     Spacer()
 
@@ -165,10 +171,12 @@ struct MenuBarView: View {
                 print("🎤 Starting recording...")
                 audioCapture.startRecording()
             } else {
-                audioCapture.stopRecording()
+                guard oldValue else {
+                    return
+                }
                 
                 // Transcribe the recorded audio
-                if let audioURL = audioCapture.recordedAudioURL {
+                if let audioURL = audioCapture.stopRecording() {
                     print("📁 Audio file saved at: \(audioURL.path)")
                     
                     // Check file size
@@ -190,6 +198,34 @@ struct MenuBarView: View {
                     print("⚠️ No audio file recorded!")
                 }
             }
+        }
+    }
+    
+    private func clearCache() {
+        let tempDir = FileManager.default.temporaryDirectory
+        
+        do {
+            // Delete all recording files
+            let contents = try FileManager.default.contentsOfDirectory(at: tempDir, includingPropertiesForKeys: nil)
+            
+            var deletedCount = 0
+            for file in contents {
+                if file.lastPathComponent.hasPrefix("recording_") && file.pathExtension == "wav" {
+                    try FileManager.default.removeItem(at: file)
+                    deletedCount += 1
+                }
+                
+                if file.lastPathComponent.hasPrefix("whisper_") {
+                    try FileManager.default.removeItem(at: file)
+                    deletedCount += 1
+                }
+            }
+            
+            print("🗑️ Cleared cache: deleted \(deletedCount) files")
+            audioCapture.recordedAudioURL = nil
+            whisper.transcription = nil
+        } catch {
+            print("❌ Error clearing cache: \(error.localizedDescription)")
         }
     }
 }

@@ -35,78 +35,103 @@ final class AudioCaptureManager: NSObject, ObservableObject {
         print("   Channels: \(format.channelCount)")
     }
     
-    // MARK: - Recording Control
+    // MARK: - Start Recording
     
     func startRecording() {
-        guard !isRecording else { 
+        guard !isRecording else {
             print("⚠️ Already recording")
-            return 
+            return
         }
-        
+
         do {
-            // Create audio file for recording
-            let audioURL = tempDirectory.appendingPathComponent("recording_\(UUID().uuidString).wav")
-            
-            // Get the input node's output format
             let inputNode = audioEngine.inputNode
+
+            // Defensive cleanup from any prior run
+            inputNode.removeTap(onBus: 0)
+            if audioEngine.isRunning {
+                audioEngine.stop()
+            }
+            audioEngine.reset()
+            audioFile = nil
+            error = nil
+            bufferFrameCount = 0
+            recordedAudioURL = nil
+
+            let audioURL = tempDirectory.appendingPathComponent("recording_\(UUID().uuidString).wav")
             let format = inputNode.outputFormat(forBus: 0)
-            
+
+            print("🎤 Starting recording...")
             print("📁 Recording to: \(audioURL.path)")
             print("🎤 Format: \(format.sampleRate)Hz, \(format.channelCount) channels")
-            
-            // Create audio file for writing (using WAV for better compatibility)
+
             audioFile = try AVAudioFile(forWriting: audioURL, settings: format.settings)
             recordedAudioURL = audioURL
-            bufferFrameCount = 0
-            
-            // Install tap on input node to capture audio
+
             inputNode.installTap(onBus: 0, bufferSize: 4096, format: format) { [weak self] buffer, _ in
+                guard let self else { return }
+
                 do {
-                    try self?.audioFile?.write(from: buffer)
-                    self?.bufferFrameCount += Int(buffer.frameLength)
-                    print("📊 Recorded \(buffer.frameLength) frames (total: \(self?.bufferFrameCount ?? 0))")
+                    try self.audioFile?.write(from: buffer)
+                    self.bufferFrameCount += Int(buffer.frameLength)
+                    print("📊 Recorded \(buffer.frameLength) frames (total: \(self.bufferFrameCount))")
                 } catch {
-                    self?.error = error
+                    self.error = error
                     print("❌ Write error: \(error.localizedDescription)")
                 }
             }
-            
-            // Start the audio engine if not already running
-            if !audioEngine.isRunning {
-                try audioEngine.start()
-                print("✅ Audio engine started")
-            } else {
-                print("✅ Audio engine already running")
-            }
-            
+
+            try audioEngine.start()
+            print("✅ Audio engine started")
+
             DispatchQueue.main.async {
                 self.isRecording = true
             }
         } catch {
             self.error = error
             print("❌ Recording start error: \(error.localizedDescription)")
+
             DispatchQueue.main.async {
                 self.isRecording = false
             }
         }
     }
     
-    func stopRecording() {
-        guard isRecording else { 
+    // MARK: - Stop Recording
+
+    func stopRecording() -> URL? {
+        guard isRecording else {
             print("⚠️ Not currently recording")
-            return 
+            return nil
         }
-        
-        audioEngine.inputNode.removeTap(onBus: 0)
-        
+
+        let inputNode = audioEngine.inputNode
+        inputNode.removeTap(onBus: 0)
+
+        // Stop the engine so this take is fully finalized
+        if audioEngine.isRunning {
+            audioEngine.stop()
+        }
+
+        // Reset internal render state before the next take
+        audioEngine.reset()
+
+        // IMPORTANT: release the file handle so the WAV is closed/flushed
+        audioFile = nil
+
         print("⏹️ Recording stopped")
         print("📊 Total frames recorded: \(bufferFrameCount)")
-        
-        // Don't stop the audio engine — let it continue for future recordings
-        
+
+        if let url = recordedAudioURL {
+            let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? NSNumber)?.intValue ?? 0
+            print("📁 Audio file saved at: \(url.path)")
+            print("📊 File size: \(size) bytes")
+        }
+
         DispatchQueue.main.async {
             self.isRecording = false
         }
+
+        return recordedAudioURL
     }
     
     // MARK: - Cleanup
