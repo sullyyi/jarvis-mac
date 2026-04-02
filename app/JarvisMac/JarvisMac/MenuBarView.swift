@@ -22,6 +22,7 @@ struct MenuBarView: View {
     @ObservedObject var serverManager: ServerManager
     @ObservedObject var audioCapture: AudioCaptureManager
     @ObservedObject var whisper: WhisperTranscriber
+    @ObservedObject var recordingController: RecordingController
     @State private var pulse = false
 
     var body: some View {
@@ -110,7 +111,7 @@ struct MenuBarView: View {
                             .font(.caption)
                     }
                     
-                    if let transcription = whisper.transcription {
+                    if let transcription = recordingController.lastTranscription {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Last transcription:")
                                 .font(.caption)
@@ -166,39 +167,6 @@ struct MenuBarView: View {
         .onAppear {
             pulse.toggle()
         }
-        .onChange(of: hotkeyMonitor.isRightOptionPressed) { oldValue, newValue in
-            if newValue {
-                print("🎤 Starting recording...")
-                audioCapture.startRecording()
-            } else {
-                guard oldValue else {
-                    return
-                }
-                
-                // Transcribe the recorded audio
-                if let audioURL = audioCapture.stopRecording() {
-                    print("📁 Audio file saved at: \(audioURL.path)")
-                    
-                    // Check file size
-                    if let attributes = try? FileManager.default.attributesOfItem(atPath: audioURL.path),
-                       let fileSize = attributes[.size] as? Int {
-                        print("📊 File size: \(fileSize) bytes")
-                    }
-                    
-                    print("🔄 Starting transcription...")
-                    whisper.transcribe(audioURL: audioURL) { result in
-                        switch result {
-                        case .success(let text):
-                            print("✅ Transcription: \(text)")
-                        case .failure(let error):
-                            print("❌ Transcription error: \(error.localizedDescription)")
-                        }
-                    }
-                } else {
-                    print("⚠️ No audio file recorded!")
-                }
-            }
-        }
     }
     
     private func clearCache() {
@@ -231,10 +199,15 @@ struct MenuBarView: View {
 }
 
 #Preview {
+    let audioCapture = AudioCaptureManager()
+    let whisper = WhisperTranscriber()
+    let recordingController = RecordingController(audioCapture: audioCapture, whisper: whisper, hotkeyMonitor: HotkeyMonitor.shared)
+    
     MenuBarView(
         hotkeyMonitor: HotkeyMonitor.shared,
         serverManager: ServerManager(),
-        audioCapture: AudioCaptureManager(),
-        whisper: WhisperTranscriber()
+        audioCapture: audioCapture,
+        whisper: whisper,
+        recordingController: recordingController
     )
 }

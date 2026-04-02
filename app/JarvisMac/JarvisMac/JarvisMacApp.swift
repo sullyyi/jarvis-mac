@@ -15,12 +15,21 @@ struct JarvisMacApp: App {
     @StateObject private var serverManager = ServerManager()
     @StateObject private var audioCapture = AudioCaptureManager()
     @StateObject private var whisper = WhisperTranscriber()
+    @StateObject private var recordingController: RecordingController
 
 
     init() {
         let monitor = HotkeyMonitor.shared
         let iconState = MenuBarIconState(hotkeyMonitor: monitor)
         _iconState = StateObject(wrappedValue: iconState)
+        
+        let audioCapture = AudioCaptureManager()
+        let whisper = WhisperTranscriber()
+        let recordingController = RecordingController(audioCapture: audioCapture, whisper: whisper, hotkeyMonitor: monitor)
+        
+        _audioCapture = StateObject(wrappedValue: audioCapture)
+        _whisper = StateObject(wrappedValue: whisper)
+        _recordingController = StateObject(wrappedValue: recordingController)
         
         // Defer hotkey monitoring to avoid blocking app startup
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -36,7 +45,8 @@ struct JarvisMacApp: App {
                 hotkeyMonitor: hotkeyMonitor,
                 serverManager: serverManager,
                 audioCapture: audioCapture,
-                whisper: whisper
+                whisper: whisper,
+                recordingController: recordingController
             )
         } label: {
             Image(systemName: currentSymbol)
