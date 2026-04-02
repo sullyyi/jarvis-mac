@@ -170,8 +170,10 @@ final class WhisperTranscriber: ObservableObject {
         
         if let json = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
            let text = json["text"] as? String {
+            let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            print("✅ Parsed transcription: '\(trimmedText)'")
             try? fileManager.removeItem(at: outputDir)
-            return text.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmedText
         }
         
         try? fileManager.removeItem(at: outputDir)
