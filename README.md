@@ -22,32 +22,46 @@ The project currently includes:
 
 ## Current Development Status
 
-The project now includes the foundational structure for the Jarvis Mac menu bar assistant.
+**Latest Milestone (v2.0):** Audio capture and transcription pipeline complete.
 
-Implemented features:
+### Implemented Features
 
-- macOS menu bar application
-- Global push-to-talk hotkey using the Option key
-- Visual feedback via pulsing menu bar icon while the key is held
+**Phase 1: Interaction Layer** ✅
+- macOS menu bar application with SwiftUI
+- Global push-to-talk hotkey using Right Option key
+- Visual feedback (pulsing menu bar icon, color-coded status)
 - Dropdown menu interface with testing utilities
-- Stable SwiftUI application structure with clean builds
+- Stable SwiftUI application structure
 
-This milestone establishes the interaction layer required for voice assistant functionality.
+**Phase 2: Audio Pipeline** ✅
+- **Microphone Capture (AVFoundation)**
+  - Real-time audio recording while hotkey is held
+  - M4A format with proper AVAudioFormat settings
+  - Automatic temp file management
+- **Speech-to-Text (Whisper)**
+  - Local Whisper CLI integration (no API key required)
+  - JSON output parsing
+  - Error handling and transcription status display
+  - Results shown in menu bar UI
 
 ### Current Interaction Flow
-Option key held
-→ Menu bar icon pulses (listening state)
-Option key released
-→ Voice pipeline will trigger (future)
+```
+Right Option key held
+  → Audio engine starts recording
+  → Menu bar icon pulses (listening state)
+  → User speaks
 
+Right Option key released
+  → Audio capture stops
+  → Whisper transcription begins
+  → Transcription displayed in menu bar
+  → Awaiting command processing (next phase)
+```
 
 ### Next Development Steps
 
-Planned features:
-
-1. Microphone capture using AVFoundation  
-2. Local speech transcription using Whisper  
-3. Command processing via language model agent  
-4. Voice response playback using ElevenLabs  
-5. System command execution and automation  
+1. **Command Processing** — Send transcribed text to language model agent (Claude/GPT)
+2. **Voice Response Playback** — ElevenLabs integration for spoken replies
+3. **System Command Execution** — Safe automation of system tasks
+4. **App-Aware Workflows** — Context-aware assistance for coding, troubleshooting, etc.
 
