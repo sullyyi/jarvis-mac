@@ -27,12 +27,22 @@ final class AudioCaptureManager: NSObject, ObservableObject {
     // MARK: - Setup
     
     private func setupAudioEngine() {
+        // Request microphone permission if not already granted
+        AVAudioApplication.requestRecordPermission { granted in
+            if granted {
+                print("✅ Microphone permission granted")
+            } else {
+                print("❌ Microphone permission denied! Grant permission in System Settings > Privacy & Security > Microphone")
+            }
+        }
+        
         let inputNode = audioEngine.inputNode
         let format = inputNode.outputFormat(forBus: 0)
         
         print("🎤 Audio Engine initialized")
         print("   Sample rate: \(format.sampleRate)")
         print("   Channels: \(format.channelCount)")
+        print("   Format: \(format)")
     }
     
     // MARK: - Start Recording
