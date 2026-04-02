@@ -14,11 +14,13 @@ final class WhisperTranscriber: ObservableObject {
     @Published var error: Error?
     
     private let processQueue = DispatchQueue(label: "com.jarvis.whisper", qos: .userInitiated)
+    private let tempDirectory = FileManager.default.temporaryDirectory
     
     // MARK: - Transcription
     
     func transcribe(audioURL: URL, completion: @escaping (Result<String, Error>) -> Void) {
         isTranscribing = true
+        error = nil
         
         processQueue.async { [weak self] in
             do {
@@ -53,38 +55,64 @@ final class WhisperTranscriber: ObservableObject {
             throw WhisperError.notInstalled
         }
         
+        // Create a unique output directory for this transcription
+        let outputDir = tempDirectory.appendingPathComponent("whisper_\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: outputDir, withIntermediateDirectories: true)
+        
         let process = Process()
         process.executableURL = URL(fileURLWithPath: whisperPath)
+        
+        // Get the filename without extension for the JSON output
+        let fileNameWithoutExt = audioFile.deletingPathExtension().lastPathComponent
         
         process.arguments = [
             audioFile.path,
             "--model", "base",
             "--language", "en",
             "--output_format", "json",
-            "--output_dir", NSTemporaryDirectory()
+            "--output_dir", outputDir.path,
+            "--verbose", "False"
         ]
         
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = pipe
         
-        try process.run()
-        process.waitUntilExit()
-        
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        do {
+            try process.run()
+            process.waitUntilExit()
+        } catch {
+            try? FileManager.default.removeItem(at: outputDir)
+            throw WhisperError.transcriptionFailed("Failed to run Whisper process: \(error.localizedDescription)")
+        }
         
         if process.terminationStatus != 0 {
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
             let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown Whisper error"
+            try? FileManager.default.removeItem(at: outputDir)
             throw WhisperError.transcriptionFailed(errorMessage)
         }
         
-        // Parse JSON output from Whisper
-        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+        // Read the JSON file that Whisper created
+        let jsonPath = outputDir.appendingPathComponent("\(fileNameWithoutExt).json")
+        
+        guard FileManager.default.fileExists(atPath: jsonPath.path) else {
+            try? FileManager.default.removeItem(at: outputDir)
+            throw WhisperError.parsingFailed("Whisper did not create output file at \(jsonPath.path)")
+        }
+        
+        let jsonData = try Data(contentsOf: jsonPath)
+        
+        if let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
            let text = json["text"] as? String {
+            // Cleanup
+            try? FileManager.default.removeItem(at: outputDir)
             return text
         }
         
-        throw WhisperError.parsingFailed
+        // Cleanup
+        try? FileManager.default.removeItem(at: outputDir)
+        throw WhisperError.parsingFailed("Failed to parse Whisper JSON output")
     }
 }
 
@@ -93,7 +121,7 @@ final class WhisperTranscriber: ObservableObject {
 enum WhisperError: LocalizedError {
     case notInstalled
     case transcriptionFailed(String)
-    case parsingFailed
+    case parsingFailed(String?)
     
     var errorDescription: String? {
         switch self {
@@ -101,8 +129,8 @@ enum WhisperError: LocalizedError {
             return "Whisper is not installed. Run: brew install openai-whisper"
         case .transcriptionFailed(let message):
             return "Transcription failed: \(message)"
-        case .parsingFailed:
-            return "Failed to parse Whisper output"
+        case .parsingFailed(let message):
+            return message ?? "Failed to parse Whisper output"
         }
     }
 }
