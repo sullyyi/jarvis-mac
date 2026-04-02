@@ -17,39 +17,54 @@ final class AudioCaptureManager: NSObject, ObservableObject {
     private let audioEngine = AVAudioEngine()
     private var audioFile: AVAudioFile?
     private let tempDirectory = FileManager.default.temporaryDirectory
+    private var bufferFrameCount: Int = 0
     
     override init() {
         super.init()
+        setupAudioEngine()
+    }
+    
+    // MARK: - Setup
+    
+    private func setupAudioEngine() {
+        let inputNode = audioEngine.inputNode
+        let format = inputNode.outputFormat(forBus: 0)
+        
+        print("🎤 Audio Engine initialized")
+        print("   Sample rate: \(format.sampleRate)")
+        print("   Channels: \(format.channelCount)")
     }
     
     // MARK: - Recording Control
     
     func startRecording() {
-        guard !isRecording else { return }
+        guard !isRecording else { 
+            print("⚠️ Already recording")
+            return 
+        }
         
         do {
             // Create audio file for recording
-            let audioURL = tempDirectory.appendingPathComponent("recording_\(UUID().uuidString).m4a")
+            let audioURL = tempDirectory.appendingPathComponent("recording_\(UUID().uuidString).wav")
             
             // Get the input node's output format
             let inputNode = audioEngine.inputNode
             let format = inputNode.outputFormat(forBus: 0)
             
-            print("🎤 Audio format: \(format)")
-            print("🎤 Sample rate: \(format.sampleRate)")
-            print("🎤 Channels: \(format.channelCount)")
+            print("📁 Recording to: \(audioURL.path)")
+            print("🎤 Format: \(format.sampleRate)Hz, \(format.channelCount) channels")
             
-            // Create audio file for writing
+            // Create audio file for writing (using WAV for better compatibility)
             audioFile = try AVAudioFile(forWriting: audioURL, settings: format.settings)
             recordedAudioURL = audioURL
-            
-            print("📁 Recording to: \(audioURL.path)")
+            bufferFrameCount = 0
             
             // Install tap on input node to capture audio
             inputNode.installTap(onBus: 0, bufferSize: 4096, format: format) { [weak self] buffer, _ in
                 do {
                     try self?.audioFile?.write(from: buffer)
-                    print("📊 Wrote \(buffer.frameLength) frames")
+                    self?.bufferFrameCount += Int(buffer.frameLength)
+                    print("📊 Recorded \(buffer.frameLength) frames (total: \(self?.bufferFrameCount ?? 0))")
                 } catch {
                     self?.error = error
                     print("❌ Write error: \(error.localizedDescription)")
@@ -60,6 +75,8 @@ final class AudioCaptureManager: NSObject, ObservableObject {
             if !audioEngine.isRunning {
                 try audioEngine.start()
                 print("✅ Audio engine started")
+            } else {
+                print("✅ Audio engine already running")
             }
             
             DispatchQueue.main.async {
@@ -75,9 +92,15 @@ final class AudioCaptureManager: NSObject, ObservableObject {
     }
     
     func stopRecording() {
-        guard isRecording else { return }
+        guard isRecording else { 
+            print("⚠️ Not currently recording")
+            return 
+        }
         
         audioEngine.inputNode.removeTap(onBus: 0)
+        
+        print("⏹️ Recording stopped")
+        print("📊 Total frames recorded: \(bufferFrameCount)")
         
         // Don't stop the audio engine — let it continue for future recordings
         

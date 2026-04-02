@@ -101,13 +101,19 @@ final class WhisperTranscriber: ObservableObject {
         
         // Find the JSON file that Whisper created (it renames based on input filename)
         let contents = try FileManager.default.contentsOfDirectory(at: outputDir, includingPropertiesForKeys: nil)
+        
+        print("📁 Output directory contents: \(contents.map { $0.lastPathComponent })")
+        
         let jsonFile = contents.first { $0.pathExtension == "json" }
         
         guard let jsonPath = jsonFile else {
             let files = try FileManager.default.contentsOfDirectory(atPath: outputDir.path)
+            print("❌ No JSON files found in \(outputDir.path). Files: \(files)")
             try? FileManager.default.removeItem(at: outputDir)
             throw WhisperError.parsingFailed("Whisper created no JSON file. Files: \(files)")
         }
+        
+        print("✅ Found JSON file: \(jsonPath.lastPathComponent)")
         
         let jsonData = try Data(contentsOf: jsonPath)
         
