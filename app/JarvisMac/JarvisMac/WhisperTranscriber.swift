@@ -62,9 +62,6 @@ final class WhisperTranscriber: ObservableObject {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: whisperPath)
         
-        // Get the filename without extension for the JSON output
-        let fileNameWithoutExt = audioFile.deletingPathExtension().lastPathComponent
-        
         process.arguments = [
             audioFile.path,
             "--model", "base",
@@ -93,12 +90,14 @@ final class WhisperTranscriber: ObservableObject {
             throw WhisperError.transcriptionFailed(errorMessage)
         }
         
-        // Read the JSON file that Whisper created
-        let jsonPath = outputDir.appendingPathComponent("\(fileNameWithoutExt).json")
+        // Find the JSON file that Whisper created (it renames based on input filename)
+        let contents = try FileManager.default.contentsOfDirectory(at: outputDir, includingPropertiesForKeys: nil)
+        let jsonFile = contents.first { $0.pathExtension == "json" }
         
-        guard FileManager.default.fileExists(atPath: jsonPath.path) else {
+        guard let jsonPath = jsonFile else {
+            let files = try FileManager.default.contentsOfDirectory(atPath: outputDir.path)
             try? FileManager.default.removeItem(at: outputDir)
-            throw WhisperError.parsingFailed("Whisper did not create output file at \(jsonPath.path)")
+            throw WhisperError.parsingFailed("Whisper created no JSON file. Files: \(files)")
         }
         
         let jsonData = try Data(contentsOf: jsonPath)
