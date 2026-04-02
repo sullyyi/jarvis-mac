@@ -19,7 +19,13 @@ struct JarvisMacApp: App {
 
     init() {
         let monitor = HotkeyMonitor.shared
-        _iconState = StateObject(wrappedValue: MenuBarIconState(hotkeyMonitor: monitor))
+        let iconState = MenuBarIconState(hotkeyMonitor: monitor)
+        _iconState = StateObject(wrappedValue: iconState)
+        
+        // Start monitoring hotkeys and icon animation immediately on app launch
+        monitor.startMonitoring()
+        iconState.startIconAnimation()
+        print("🎯 Hotkey monitoring started at app launch")
     }
 
     var body: some Scene {
@@ -33,9 +39,6 @@ struct JarvisMacApp: App {
         } label: {
             Image(systemName: currentSymbol)
                 .foregroundStyle(hotkeyMonitor.isRightOptionPressed ? .green : .primary)
-                .onAppear {
-                    iconState.start()
-                }
         }
         .menuBarExtraStyle(.window)
     }

@@ -22,6 +22,11 @@ final class MenuBarIconState: ObservableObject {
         guard timer == nil else { return }
 
         hotkeyMonitor.startMonitoring()
+        startIconAnimation()
+    }
+    
+    func startIconAnimation() {
+        guard timer == nil else { return }
 
         timer = Timer.scheduledTimer(withTimeInterval: 0.45, repeats: true) { [weak self] _ in
             guard let self else { return }
