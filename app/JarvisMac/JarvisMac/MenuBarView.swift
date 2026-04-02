@@ -162,20 +162,32 @@ struct MenuBarView: View {
         }
         .onChange(of: hotkeyMonitor.isRightOptionPressed) { oldValue, newValue in
             if newValue {
+                print("🎤 Starting recording...")
                 audioCapture.startRecording()
             } else {
                 audioCapture.stopRecording()
                 
                 // Transcribe the recorded audio
                 if let audioURL = audioCapture.recordedAudioURL {
+                    print("📁 Audio file saved at: \(audioURL.path)")
+                    
+                    // Check file size
+                    if let attributes = try? FileManager.default.attributesOfItem(atPath: audioURL.path),
+                       let fileSize = attributes[.size] as? Int {
+                        print("📊 File size: \(fileSize) bytes")
+                    }
+                    
+                    print("🔄 Starting transcription...")
                     whisper.transcribe(audioURL: audioURL) { result in
                         switch result {
                         case .success(let text):
-                            print("Transcription: \(text)")
+                            print("✅ Transcription: \(text)")
                         case .failure(let error):
-                            print("Transcription error: \(error.localizedDescription)")
+                            print("❌ Transcription error: \(error.localizedDescription)")
                         }
                     }
+                } else {
+                    print("⚠️ No audio file recorded!")
                 }
             }
         }
