@@ -22,10 +22,12 @@ struct JarvisMacApp: App {
         let iconState = MenuBarIconState(hotkeyMonitor: monitor)
         _iconState = StateObject(wrappedValue: iconState)
         
-        // Start monitoring hotkeys and icon animation immediately on app launch
-        monitor.startMonitoring()
-        iconState.startIconAnimation()
-        print("🎯 Hotkey monitoring started at app launch")
+        // Defer hotkey monitoring to avoid blocking app startup
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            monitor.startMonitoring()
+            iconState.startIconAnimation()
+            print("🎯 Hotkey monitoring started")
+        }
     }
 
     var body: some Scene {
